@@ -648,12 +648,9 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	
 	for (NSDictionary *systemDictionary in _systemsArray)
 	{
-		NSString *model = [systemDictionary objectForKey:@"Model"];
-		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model Identifier"];
+		NSString *model = [systemDictionary objectForKey:@"Name"];
+		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model ID"];
 		NSString *modelEntry = [NSString stringWithFormat:@"%@ (%@)", model, modelIdentifier];
-		
-		if ([modelIdentifier isEqualToString:@"N/A"])
-			continue;
 		
 		[modelArray addObject:modelEntry];
 	}
@@ -668,10 +665,7 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	
 	for (NSDictionary *systemDictionary in _systemsArray)
 	{
-		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model Identifier"];
-		
-		if ([modelIdentifier isEqualToString:@"N/A"])
-			continue;
+		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model ID"];
 		
 		if (selectedIndex == 0 && [_modelIdentifier isEqualToString:modelIdentifier])
 			selectedIndex = systemCount;
@@ -680,6 +674,8 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	}
 	
 	[_modelInfoComboBox selectItemAtIndex:selectedIndex];
+	
+	[self updateModelInfo];
 }
 
 - (uint32_t)getModelIndex:(NSString *)modelName
@@ -687,8 +683,8 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	for (int i = 0; i < _systemsArray.count; i++)
 	{
 		NSDictionary *systemDictionary = _systemsArray[i];
-		NSString *model = [systemDictionary objectForKey:@"Model"];
-		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model Identifier"];
+		NSString *model = [systemDictionary objectForKey:@"Name"];
+		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model ID"];
 		NSString *modelEntry = [NSString stringWithFormat:@"%@ (%@)", model, modelIdentifier];
 		
 		if (![modelName isEqualToString:modelEntry])
@@ -754,8 +750,8 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 
 	for (NSDictionary *systemDictionary in _systemsArray)
 	{
-		NSString *model = [systemDictionary objectForKey:@"Model"];
-		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model Identifier"];
+		NSString *model = [systemDictionary objectForKey:@"Name"];
+		NSString *modelIdentifier = [systemDictionary objectForKey:@"Model ID"];
 		NSString *modelEntry = [NSString stringWithFormat:@"%@ (%@)", model, modelIdentifier];
 		
 		if ([_modelInfoComboBox.stringValue isEqualToString:modelEntry])
@@ -2049,7 +2045,7 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	NSError *error = nil;
 	NSString *stdoutString = nil;
 	
-	if (!launchCommand(@"/usr/sbin/system_profiler", @[@"SPBluetoothDataType", @"-xml"], &stdoutString))
+	if (!launchCommand(@"/usr/sbin/system_profiler", @[@"SPBluetoothDataType", @"-xml", @"-timeout", @"1"], &stdoutString))
 		return NO;
 
 	NSArray *bluetoothArray = [NSPropertyListSerialization propertyListWithData:[stdoutString dataUsingEncoding:NSUTF8StringEncoding] options:kNilOptions format:nil error:&error];
@@ -2084,11 +2080,12 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	if (controllerDictionary == nil)
 		return NO;
 	
-	//NSString *controllerAddress = [controllerDictionary objectForKey:@"controller_address"];
+	NSString *controllerAddress = [controllerDictionary objectForKey:@"controller_address"];
 	NSString *controllerChipset = [controllerDictionary objectForKey:@"controller_chipset"];
 	//NSString *controllerFirmwareVersion = [controllerDictionary objectForKey:@"controller_firmwareVersion"];
 	NSString *controllerProductID = [controllerDictionary objectForKey:@"controller_productID"];
 	NSString *controllerVendorID = [controllerDictionary objectForKey:@"controller_vendorID"];
+	NSString *serial = [controllerAddress stringByReplacingOccurrencesOfString:@":" withString:@""];
 	
 	//NSLog(@"Address: %@ Chipset: %@ FirmwareVersion: %@ ProductID: %@ VendorID: %@", controllerAddress, controllerChipset, controllerFirmwareVersion, controllerProductID, controllerVendorID);
 	
@@ -2099,10 +2096,10 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 		controllerVendorID = [controllerVendorID substringToIndex:vendorRange.location];
 	}
 	
-	if ([controllerChipset isEqualToString:@"THIRD_PARTY_DONGLE"])
+	/* if ([controllerChipset isEqualToString:@"THIRD_PARTY_DONGLE"])
 	{
 		return NO;
-	}
+	} */
 	
 	NSNumber *productID, *vendorID;
 	unsigned int intValue;
@@ -2120,9 +2117,89 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	[bluetoothDeviceDictionary setObject:@"com.apple.iokit.IOBluetoothHostControllerTransport" forKey:@"BundleID"];
 	[bluetoothDeviceDictionary setObject:@(YES) forKey:@"FWLoaded"];
 	
+	[self getNativeBluetoothDeviceInfoWithSerial:serial bluetoothDeviceDictionary:bluetoothDeviceDictionary];
+	
 	return YES;
 }
+
+- (BOOL)getNativeBluetoothDeviceInfoWithSerial:(NSString *)serial bluetoothDeviceDictionary:(NSMutableDictionary *)bluetoothDeviceDictionary
+{
+	NSError *error = nil;
+	NSString *stdoutString = nil;
 	
+	if (!launchCommand(@"/usr/sbin/system_profiler", @[@"SPUSBDataType", @"-xml", @"-timeout", @"1"], &stdoutString))
+		return NO;
+
+	NSArray *controllerArray = [NSPropertyListSerialization propertyListWithData:[stdoutString dataUsingEncoding:NSUTF8StringEncoding] options:kNilOptions format:nil error:&error];
+		
+	if (controllerArray == nil)
+	{
+		NSLog(@"%@", [error localizedDescription]);
+		
+		return NO;
+	}
+	
+	if ([controllerArray count] == 0)
+		return NO;
+	
+	NSDictionary *controllerDictionary = [controllerArray objectAtIndex:0];
+	
+	if (controllerDictionary == nil)
+		return NO;
+	
+	NSArray *hostControllerArray = [controllerDictionary objectForKey:@"_items"];
+	
+	if (hostControllerArray == nil || [hostControllerArray count] == 0)
+		return NO;
+	
+	NSDictionary *hostControllerDictionary = [hostControllerArray objectAtIndex:0];
+	
+	if (hostControllerDictionary == nil)
+		return NO;
+	
+	NSArray *usbDeviceArray = [hostControllerDictionary objectForKey:@"_items"];
+	
+	if (usbDeviceArray == nil || [usbDeviceArray count] == 0)
+		return NO;
+
+	for (NSDictionary *deviceDictionary in usbDeviceArray)
+	{
+		NSString *serialNum = [deviceDictionary objectForKey:@"serial_num"];
+		
+		if (![serial isEqualTo:serialNum])
+			continue;
+		
+		NSString *name = [deviceDictionary objectForKey:@"_name"];
+		NSString *manufacturer = [deviceDictionary objectForKey:@"manufacturer"];
+		NSString *devicePID = [deviceDictionary objectForKey:@"product_id"];
+		NSString *deviceVID = [deviceDictionary objectForKey:@"vendor_id"];
+		NSRange spaceRange = [deviceVID rangeOfString:@" "];
+		
+		if (spaceRange.location != NSNotFound)
+			deviceVID = [deviceVID substringToIndex:spaceRange.location];
+		
+		NSNumber *productID, *vendorID;
+		unsigned int intValue;
+		NSScanner *scanner = [NSScanner scannerWithString:devicePID];
+		[scanner scanHexInt:&intValue];
+		productID = [NSNumber numberWithInt:intValue];
+		scanner = [NSScanner scannerWithString:deviceVID];
+		[scanner scanHexInt:&intValue];
+		vendorID = [NSNumber numberWithInt:intValue];
+		
+		[bluetoothDeviceDictionary setObject:name forKey:@"DeviceName"];
+		[bluetoothDeviceDictionary setObject:manufacturer forKey:@"VendorName"];
+		[bluetoothDeviceDictionary setObject:productID forKey:@"DeviceID"];
+		[bluetoothDeviceDictionary setObject:vendorID forKey:@"VendorID"];
+		
+		//NSLog(@"%@", deviceDictionary);
+
+		break;
+	}
+
+	return YES;
+}
+
 - (void)getBluetoothDeviceInfo:(NSDictionary *)deviceDictionary bluetoothDeviceDictionary:(NSMutableDictionary *)bluetoothDeviceDictionary
 {
 	NSString *productName = [deviceDictionary objectForKey:@kUSBProductString];
@@ -2927,6 +3004,9 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 			NSString *projectUrl = [kextDictionary objectForKey:@"ProjectUrl"];
 			NSString *projectFileUrl = [kextDictionary objectForKey:@"ProjectFileUrl"];
 			NSString *outputPath = [buildPath stringByAppendingPathComponent:name];
+			NSString *tempDebugPath = [tempPath stringByAppendingPathComponent:@"Debug"];
+			NSString *tempReleasePath = [tempPath stringByAppendingPathComponent:@"Release"];
+			
 			NSString *projectFileName = (projectFileUrl != nil ? [[projectFileUrl lastPathComponent] stringByRemovingPercentEncoding] : [name stringByAppendingString:@".xcodeproj"]);
 			NSString *updateGitSubmodules = @"cd $(OUTPUT_PATH) && $(SUBMODULE_UPDATE)";
 			bool isLilu = [name isEqualToString:@"Lilu"];
@@ -2943,8 +3023,11 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 			updateGitSubmodules = [updateGitSubmodules stringByReplacingOccurrencesOfString:@"$(OUTPUT_PATH)" withString:outputPath];
 			updateGitSubmodules = [updateGitSubmodules stringByReplacingOccurrencesOfString:@"$(SUBMODULE_UPDATE)" withString:GitSubmoduleUpdate];
             launchCommand(@"/bin/bash", @[@"-c", updateGitSubmodules], self,  @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
-			launchCommand(@"/usr/bin/xcodebuild", @[@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Debug", @"clean", @"build", @"ARCHS=x86_64", @"WARNING_CFLAGS=-w", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", debugPath]], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
-			launchCommand(@"/usr/bin/xcodebuild", @[@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Release", @"clean", @"build", @"ARCHS=x86_64", @"WARNING_CFLAGS=-w", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", releasePath]], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
+			launchCommand(@"/usr/bin/xcodebuild", @[@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Debug", @"clean", @"build", @"ARCHS=x86_64", @"WARNING_CFLAGS=-w", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", tempDebugPath]], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
+			launchCommand(@"/usr/bin/xcodebuild", @[@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Release", @"clean", @"build", @"ARCHS=x86_64", @"WARNING_CFLAGS=-w", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", tempReleasePath]], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
+			
+			launchCommand(@"/bin/cp", @[@"-r", [tempDebugPath stringByAppendingPathComponent:@"."], debugPath], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
+			launchCommand(@"/bin/cp", @[@"-r", [tempReleasePath stringByAppendingPathComponent:@"."], releasePath], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
 			
 			double progressPercent = (double)++compileIndex / (double)compileCount;
 			
@@ -2966,6 +3049,8 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 			NSString *projectFileUrl = [kextDictionary objectForKey:@"ProjectFileUrl"];
 			NSString *superseder = [kextDictionary objectForKey:@"Superseder"];
 			NSString *outputPath = [buildPath stringByAppendingPathComponent:name];
+			NSString *tempDebugPath = [tempPath stringByAppendingPathComponent:@"Debug"];
+			NSString *tempReleasePath = [tempPath stringByAppendingPathComponent:@"Release"];
 			NSString *outputLiluKextPath = [outputPath stringByAppendingPathComponent:@"Lilu.kext"];
 			NSString *liluKextPath = [debugPath stringByAppendingPathComponent:@"Lilu.kext"];
 			NSString *projectFileName = (projectFileUrl != nil ? [[projectFileUrl lastPathComponent] stringByRemovingPercentEncoding] : [name stringByAppendingString:@".xcodeproj"]);
@@ -3015,8 +3100,8 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 				launchCommand(@"/bin/bash", @[@"-c", preBuildBash], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
 			}
 			
-			NSMutableArray *debugArguments = [NSMutableArray arrayWithObjects:@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Debug", @"clean", @"build", @"ARCHS=x86_64", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", debugPath], nil];
-			NSMutableArray *releaseArguments = [NSMutableArray arrayWithObjects:@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Release", @"clean", @"build", @"ARCHS=x86_64", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", releasePath], nil];
+			NSMutableArray *debugArguments = [NSMutableArray arrayWithObjects:@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Debug", @"clean", @"build", @"ARCHS=x86_64", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", tempDebugPath], nil];
+			NSMutableArray *releaseArguments = [NSMutableArray arrayWithObjects:@"-project", [outputPath stringByAppendingPathComponent:projectFileName], @"-configuration", @"Release", @"clean", @"build", @"ARCHS=x86_64", [NSString stringWithFormat:@"CONFIGURATION_BUILD_DIR=%@", tempReleasePath], nil];
 			
 			if (scheme != nil)
 			{
@@ -3026,6 +3111,9 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 			
 			launchCommand(@"/usr/bin/xcodebuild", debugArguments, self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
 			launchCommand(@"/usr/bin/xcodebuild", releaseArguments, self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
+			
+			launchCommand(@"/bin/cp", @[@"-r", [tempDebugPath stringByAppendingPathComponent:@"."], debugPath], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
+			launchCommand(@"/bin/cp", @[@"-r", [tempReleasePath stringByAppendingPathComponent:@"."], releasePath], self, @selector(compileOutputNotification:), @selector(compileErrorNotification:), @selector(compileCompleteNotification:));
 			
 			double progressPercent = (double)++compileIndex / (double)compileCount;
 			
@@ -8501,9 +8589,14 @@ NSInteger usbControllerSort(id a, id b, void *context)
 	}
 }
 
-- (IBAction)headsoftLogoButtonClicked:(id)sender
+- (IBAction)starButtonClicked:(id)sender
 {
-	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://headsoft.com.au"]];
+	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/benbaker76/Hackintool"]];
+}
+
+- (IBAction)webButtonClicked:(id)sender
+{
+	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://www.baker76.com/hackintool"]];
 }
 
 - (IBAction)vramInfoChanged:(id)sender
@@ -8788,6 +8881,11 @@ NSInteger usbControllerSort(id a, id b, void *context)
 	[_window endSheet:superView.window returnCode:NSModalResponseOK];
 }
 
+- (IBAction)sponsorButtonClicked:(id)sender
+{
+	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/sponsors/benbaker76"]];
+}
+
 - (IBAction)donateButtonClicked:(id)sender
 {
 	[_window beginSheet:_donateWindow completionHandler:^(NSModalResponse returnCode)
@@ -8802,7 +8900,7 @@ NSInteger usbControllerSort(id a, id b, void *context)
 
 - (IBAction)donatePayPalButtonClicked:(id)sender
 {
-	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=benbaker@headsoft.com.au&item_name=Hackintool&currency_code=USD"]];
+	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=ben@baker76.com&item_name=Hackintool&currency_code=USD"]];
 }
 
 - (IBAction)donateEthereumButtonClicked:(id)sender

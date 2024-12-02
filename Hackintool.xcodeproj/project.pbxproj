@@ -86,6 +86,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DD47FE242ABB85F50063D03F /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/MainMenu.strings"; sourceTree = "<group>"; };
+		DD4F6A3B2ABA379300E9FA56 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		E200EE7821FBD4600082D799 /* NVRAMXmlParser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NVRAMXmlParser.h; sourceTree = "<group>"; };
 		E200EE7921FBD4600082D799 /* NVRAMXmlParser.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NVRAMXmlParser.m; sourceTree = "<group>"; };
 		E228024521046E9C00C0FDC6 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
@@ -485,6 +487,7 @@
 				fr,
 				"zh-Hans",
 				tr,
+				"pt-BR",
 			);
 			mainGroup = E24936EF169D1B2B00384895;
 			productRefGroup = E24936FB169D1B2B00384895 /* Products */;
@@ -586,6 +589,7 @@
 			isa = PBXVariantGroup;
 			children = (
 				E2E9476F2204A9F5005348C0 /* Base */,
+				DD47FE242ABB85F50063D03F /* pt-BR */,
 			);
 			name = MainMenu.xib;
 			sourceTree = "<group>";
@@ -610,6 +614,7 @@
 				E2521F49220894DA00DB2BD2 /* fr */,
 				E2DDEC31222CA59F00661F3C /* zh-Hans */,
 				E2A91B71235CA34A007B7851 /* tr */,
+				DD4F6A3B2ABA379300E9FA56 /* pt-BR */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -718,10 +723,11 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 0393;
+				CURRENT_PROJECT_VERSION = 0403;
 				DEVELOPMENT_TEAM = 5LGHPJM9ZR;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = NO;
@@ -735,8 +741,8 @@
 				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2";
 				INFOPLIST_FILE = "Hackintool/Hackintool-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Frameworks @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				MARKETING_VERSION = 3.9.3;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MARKETING_VERSION = 4.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Headsoft.Hackintool;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -754,10 +760,11 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 0393;
+				CURRENT_PROJECT_VERSION = 0403;
 				DEVELOPMENT_TEAM = 5LGHPJM9ZR;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = NO;
@@ -771,8 +778,8 @@
 				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2";
 				INFOPLIST_FILE = "Hackintool/Hackintool-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Frameworks @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				MARKETING_VERSION = 3.9.3;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MARKETING_VERSION = 4.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Headsoft.Hackintool;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
